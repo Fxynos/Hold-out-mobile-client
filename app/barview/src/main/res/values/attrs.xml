@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="BarView">
+        <attr name="color" format="reference|color"/>
+        <attr name="active_color" format="reference|color"/>
+        <attr name="src" format="reference"/>
+        <attr name="progress" format="float"/>
+    </declare-styleable>
+</resources>

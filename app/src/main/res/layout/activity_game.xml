@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <androidx.constraintlayout.helper.widget.Flow
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/event_background"
+        app:flow_wrapMode="none"
+        app:flow_horizontalStyle="spread"
+        app:constraint_referenced_ids="character_bar,health_bar,knowledge_bar,wealth_bar"/>
+
+    <com.vl.barview.BarView
+        android:id="@+id/character_bar"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        app:color="?attr/colorSecondaryVariant"
+        app:active_color="?attr/colorSecondary"
+        app:src="@drawable/icon_close"
+        app:progress="0.5"/>
+
+    <com.vl.barview.BarView
+        android:id="@+id/health_bar"
+        android:layout_width="@dimen/icon_size"
+
+        android:layout_height="@dimen/icon_size"
+        app:color="?attr/colorSecondaryVariant"
+        app:active_color="?attr/colorSecondary"
+        app:src="@drawable/icon_close"
+        app:progress="0.5"/>
+
+    <com.vl.barview.BarView
+        android:id="@+id/knowledge_bar"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        app:color="?attr/colorSecondaryVariant"
+        app:active_color="?attr/colorSecondary"
+        app:src="@drawable/icon_close"
+        app:progress="0.5"/>
+
+    <com.vl.barview.BarView
+        android:id="@+id/wealth_bar"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        app:color="?attr/colorSecondaryVariant"
+        app:active_color="?attr/colorSecondary"
+        app:src="@drawable/icon_close"
+        app:progress="0.5"/>
+
+    <View
+        android:id="@+id/event_background"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="?attr/colorPrimary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHeight_percent="0.7"/>
+
+    <TextView
+        android:id="@+id/text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toLeftOf="@id/event_background"
+        app:layout_constraintRight_toRightOf="@id/event_background"
+        app:layout_constraintTop_toTopOf="@id/event_background"
+        app:layout_constraintBottom_toTopOf="@id/event_card"
+        tools:text="Вы идёте на экзамен по вёрсткологии"/>
+
+    <!-- space occupies 25% of height -->
+    <Space
+        android:id="@+id/top_space"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintVertical_weight="2"
+        app:layout_constraintTop_toTopOf="@id/event_background"
+        app:layout_constraintBottom_toTopOf="@id/event_card"/>
+
+    <!-- card occupies 62.5% of height -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/event_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:cardBackgroundColor="@color/kinda_light_brown"
+        app:cardCornerRadius="12dp"
+        app:layout_constraintVertical_weight="5"
+        app:layout_constraintLeft_toLeftOf="@id/event_background"
+        app:layout_constraintRight_toRightOf="@id/event_background"
+        app:layout_constraintTop_toBottomOf="@id/top_space"
+        app:layout_constraintBottom_toTopOf="@id/bottom_space"
+        app:layout_constraintDimensionRatio="1:1" />
+
+    <!-- space occupies 12.5% of height -->
+    <Space
+        android:id="@+id/bottom_space"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintVertical_weight="1"
+        app:layout_constraintBottom_toBottomOf="@id/event_background"
+        app:layout_constraintTop_toBottomOf="@id/event_card"/>
+
+    <TextView
+        android:id="@+id/actor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        app:layout_constraintLeft_toLeftOf="@id/event_background"
+        app:layout_constraintRight_toRightOf="@id/event_background"
+        app:layout_constraintTop_toTopOf="@id/bottom_space"
+        app:layout_constraintBottom_toBottomOf="@id/bottom_space"
+        tools:text="Личность"/>
+
+    <TextView
+        android:id="@+id/self_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:textColor="?attr/colorOnPrimary"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/event_background"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.2"
+        tools:text="Андрей"/>
+
+    <TextView
+        android:id="@+id/counter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="32sp"
+        android:textColor="?attr/colorOnPrimary"
+        app:layout_constraintLeft_toLeftOf="@id/self_name"
+        app:layout_constraintTop_toBottomOf="@id/self_name"
+        tools:text="0"/>
+
+    <TextView
+        android:id="@+id/counter_detail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:textColor="?attr/colorOnPrimary"
+        app:layout_constraintBaseline_toBaselineOf="@id/counter"
+        app:layout_constraintStart_toEndOf="@id/counter"
+        tools:text="дней на стипендии"/>
+
+    <!-- button occupies almost 67% of height -->
+    <ImageButton
+        android:id="@+id/backpack"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginEnd="24dp"
+        android:src="@drawable/icon_backpack"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/self_name"
+        app:layout_constraintBottom_toTopOf="@id/bottom_space_footer"
+        app:layout_constraintVertical_weight="2"/>
+
+    <Space
+        android:id="@+id/bottom_space_footer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/backpack"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_weight="1"/>
+
+    <View
+        android:id="@+id/pull_area"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintLeft_toLeftOf="@id/event_card"
+        app:layout_constraintRight_toRightOf="@id/event_card"
+        app:layout_constraintTop_toTopOf="@id/event_card"
+        app:layout_constraintBottom_toBottomOf="@id/event_card"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.StudentSimulatorSurvival" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/kinda_brown</item>
+        <item name="colorPrimaryVariant">@color/kinda_dark_brown</item>
+        <item name="colorOnPrimary">@color/kinda_light_brown</item>
+
+        <item name="colorSecondary">@color/kinda_light_brown</item>
+        <item name="colorSecondaryVariant">@color/kinda_gray_brown</item>
+        <item name="colorOnSecondary">@color/kinda_dark_brown</item>
+
+        <item name="android:windowBackground">?attr/colorPrimaryVariant</item>
+
+        <item name="android:textViewStyle">@style/TextViewStyle</item>
+        <item name="imageButtonStyle">@style/ImageButtonStyle</item>
+    </style>
+</resources>
