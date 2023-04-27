@@ -13,7 +13,8 @@ internal class CardConstructor(
     override fun create(properties: Map<String, String>) = Card(
         properties.require(type).also { if (it == CARDS_ALL) throw ParseException("card uses reserved name \"$it\"") },
         properties.require("title").replace(DELIMITER_LINEFEED, "\n"),
-        properties.require("text").replace(DELIMITER_LINEFEED, "\n")
+        properties.require("text").replace(DELIMITER_LINEFEED, "\n"),
+        properties.require("tags").split(DELIMITER_ARRAY).toTypedArray()
     )
 
     override fun finish(instance: Card, properties: Map<String, String>) {

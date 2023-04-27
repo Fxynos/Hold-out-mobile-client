@@ -1,6 +1,7 @@
 package com.vl.holdout.parser.pojo
 
 import android.graphics.Canvas
+import java.util.function.Consumer
 
 class Picture internal constructor(
     override val id: String,
@@ -9,5 +10,5 @@ class Picture internal constructor(
     val width: Double,
     val height: Double
 ): Base(id) {
-    lateinit var layers: Array<(Canvas)->Unit>
+    lateinit var layers: Array<Consumer<Canvas>>
 }

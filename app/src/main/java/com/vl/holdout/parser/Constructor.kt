@@ -11,6 +11,10 @@ internal abstract class Constructor<T: Base>(protected val type: String) {
         @JvmStatic
         protected val DELIMITER_PAIR = "="
         @JvmStatic
+        protected val PREFIX_AFFECT_EXPLICIT = "\$"
+        @JvmStatic
+        protected val PREFIX_TAG = "\$"
+        @JvmStatic
         protected val CARDS_ALL = "ALL"
     }
 

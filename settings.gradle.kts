@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "Hold out"
-include ':app'
-include ':app:barview'
+include(":app")
+include(":app:barview")

@@ -10,8 +10,12 @@ import java.util.stream.Collectors
 import kotlin.streams.toList
 
 object Parser {
-
-    fun load(file: File) = create(read(file).parse())
+    /**
+     * @param root sources directory root
+     * Root must contain main.ho - text file for parsing
+     * main.ho positions other sources like pictures relative to itself
+     */
+    fun load(root: File) = create(read(File(root, "main.ho")).parse(), root)
 
     private fun read(file: File) = FileInputStream(file).use { stream ->
         val reader = BufferedReader(InputStreamReader(stream))
@@ -61,7 +65,7 @@ object Parser {
         ) as Map<String, Map<String, Map<String, String>>> // type -> instance -> property
 
     @Suppress("UNCHECKED_CAST")
-    private fun create(objects: Map<String, Map<String, Map<String, String>>>): Repositories {
+    private fun create(objects: Map<String, Map<String, Map<String, String>>>, root: File): Repositories {
         val repositories = mapOf<String, Repository<*>>(
             "core" to Repository<Core>(),
             "bar" to Repository<Bar>(),
@@ -77,7 +81,7 @@ object Parser {
                 ) to when (typeAndObjects.key) {
                     "core" -> CoreConstructor(repositories["choice"] as Repository<Choice>, repositories["bar"] as Repository<Bar>)
                     "bar" -> BarConstructor()
-                    "picture" -> PictureConstructor(repositories["picture"] as Repository<Picture>)
+                    "picture" -> PictureConstructor(repositories["picture"] as Repository<Picture>, root)
                     "choice" -> ChoiceConstructor(repositories["card"] as Repository<Card>, repositories["bar"] as Repository<Bar>)
                     "card" -> CardConstructor(repositories["choice"] as Repository<Choice>, repositories["picture"] as Repository<Picture>)
                     else -> throw RuntimeException() // can not be reached

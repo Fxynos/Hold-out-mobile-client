@@ -4,6 +4,7 @@ import com.vl.holdout.parser.pojo.Bar
 import com.vl.holdout.parser.pojo.Card
 import com.vl.holdout.parser.pojo.Choice
 import java.util.stream.Collectors
+import java.util.stream.Stream
 import kotlin.streams.toList
 
 internal class ChoiceConstructor(
@@ -24,7 +25,14 @@ internal class ChoiceConstructor(
                         allCards
                     else
                         cards.split(DELIMITER_ARRAY).stream()
-                            .map { cardsRepository[it.trim()] }.toList().toTypedArray()
+                            .flatMap {
+                                val id = it.trim()
+                                if (id.startsWith(PREFIX_TAG))
+                                    cardsRepository.values.stream()
+                                        .filter { card -> card.tags.contains(id.substring(1)) }
+                                    else
+                                        Stream.of(cardsRepository[id])
+                            }.distinct().toList().toTypedArray()
                 }
         ).also {
                 if (it.isEmpty())
@@ -36,14 +44,14 @@ internal class ChoiceConstructor(
             else
                 property.split(DELIMITER_ARRAY).stream()
                     .map { sPair ->
-                        sPair.split(DELIMITER_PAIR, limit = 2).let { it ->
+                        sPair.split(DELIMITER_PAIR, limit = 2).let {
                             it[0].trim() to if (it.size > 1) it[1].trim() else throw ParseException(sPair)
                         }
                     }
                     .map { (barId, sAffect) ->
                         var affectType = Choice.Affect.Type.MASK
                         barsRepository[barId] to (
-                                if (sAffect.startsWith("\$"))
+                                if (sAffect.startsWith(PREFIX_AFFECT_EXPLICIT))
                                     sAffect.substring(1).also { affectType = Choice.Affect.Type.EXPLICIT }
                                 else
                                     sAffect
