@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.StudentSimulatorSurvival" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.StudentSimulatorSurvival" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/kinda_brown</item>
         <item name="colorPrimaryVariant">@color/kinda_dark_brown</item>
         <item name="colorOnPrimary">@color/kinda_light_brown</item>
@@ -9,8 +9,10 @@
         <item name="colorOnSecondary">@color/kinda_dark_brown</item>
 
         <item name="android:windowBackground">?attr/colorPrimaryVariant</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
 
         <item name="android:textViewStyle">@style/TextViewStyle</item>
         <item name="imageButtonStyle">@style/ImageButtonStyle</item>
+        <item name="android:buttonStyle">@style/ButtonStyle</item>
     </style>
 </resources>

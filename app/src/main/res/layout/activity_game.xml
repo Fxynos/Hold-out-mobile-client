@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".GameActivity">
 
     <androidx.constraintlayout.helper.widget.Flow
         android:layout_width="match_parent"
@@ -12,10 +13,11 @@
         app:layout_constraintBottom_toTopOf="@id/event_background"
         app:flow_wrapMode="none"
         app:flow_horizontalStyle="spread"
-        app:constraint_referenced_ids="character_bar,health_bar,knowledge_bar,wealth_bar"/>
+        app:constraint_referenced_ids="bar1,bar2,bar3,bar4"/>
 
+    <!-- TODO variable count -->
     <com.vl.barview.BarView
-        android:id="@+id/character_bar"
+        android:id="@+id/bar1"
         android:layout_width="@dimen/icon_size"
         android:layout_height="@dimen/icon_size"
         app:color="?attr/colorSecondaryVariant"
@@ -24,7 +26,7 @@
         app:progress="0.5"/>
 
     <com.vl.barview.BarView
-        android:id="@+id/health_bar"
+        android:id="@+id/bar2"
         android:layout_width="@dimen/icon_size"
 
         android:layout_height="@dimen/icon_size"
@@ -34,7 +36,7 @@
         app:progress="0.5"/>
 
     <com.vl.barview.BarView
-        android:id="@+id/knowledge_bar"
+        android:id="@+id/bar3"
         android:layout_width="@dimen/icon_size"
         android:layout_height="@dimen/icon_size"
         app:color="?attr/colorSecondaryVariant"
@@ -43,7 +45,7 @@
         app:progress="0.5"/>
 
     <com.vl.barview.BarView
-        android:id="@+id/wealth_bar"
+        android:id="@+id/bar4"
         android:layout_width="@dimen/icon_size"
         android:layout_height="@dimen/icon_size"
         app:color="?attr/colorSecondaryVariant"
@@ -91,7 +93,12 @@
         app:layout_constraintRight_toRightOf="@id/event_background"
         app:layout_constraintTop_toBottomOf="@id/top_space"
         app:layout_constraintBottom_toTopOf="@id/bottom_space"
-        app:layout_constraintDimensionRatio="1:1" />
+        app:layout_constraintDimensionRatio="1:1">
+        <ImageView
+            android:id="@+id/cardImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+    </androidx.cardview.widget.CardView>
 
     <!-- space occupies 12.5% of height -->
     <Space

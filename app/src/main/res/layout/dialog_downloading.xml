@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:background="@drawable/rounded"
+    android:backgroundTint="@color/kinda_light_brown"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/downloading_dialog_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/loading_header"
+        android:textSize="@dimen/header_dialog"/>
+
+    <TextView
+        android:id="@+id/downloading_dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/downloading_story_title"/>
+
+    <TextView
+        android:id="@+id/downloading_dialog_description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="24dp"
+        tools:text="Распасковка..."/>
+
+</LinearLayout>

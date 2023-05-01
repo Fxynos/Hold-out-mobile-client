@@ -45,10 +45,10 @@ private abstract class Drawer(
     open val height: Double
 ): Consumer<Canvas> {
     protected fun (Canvas).viewPort() = RectF(
-        (x * this.width).toFloat(),
-        (y * this.height).toFloat(),
-        ((1 - x - width) * this.width).toFloat(),
-        ((1 - y - height) * this.height).toFloat()
+        (x * width).toFloat(),
+        (y * height).toFloat(),
+        ((x + this@Drawer.width) * width).toFloat(),
+        ((y + this@Drawer.height) * height).toFloat()
     )
 }
 
@@ -57,20 +57,17 @@ private class ColorDrawer(
     override val y: Double,
     override val width: Double,
     override val height: Double,
-    val color: String
+    color: String
 ): Drawer(x, y, width, height) {
     val paint = Paint()
     init {
-        paint.color = Color.parseColor("#$color".uppercase())
+        paint.color = Color.parseColor("#$color")
         paint.style = Paint.Style.FILL
     }
 
     override fun accept(canvas: Canvas) =
         canvas.drawRect(
-            (x * canvas.width).toFloat(),
-            (y * canvas.height).toFloat(),
-            ((1 - x - width) * canvas.width).toFloat(),
-            ((1 - y - height) * canvas.height).toFloat(),
+            canvas.viewPort(),
             paint
         )
 }
@@ -82,30 +79,36 @@ private class FileDrawer(
     override val height: Double,
     val file: File
 ): Drawer(x, y, width, height) {
-
     init {
         if (!file.exists())
             throw ParseException("Couldn't load file for picture: ${file.absolutePath}")
     }
-    override fun accept(canvas: Canvas) =
+    override fun accept(canvas: Canvas) {
         if (file.name.endsWith(".svg"))
             drawVector(canvas)
         else
             drawBitmap(canvas)
+    }
 
-    private fun drawBitmap(canvas: Canvas) =
+    private fun drawBitmap(canvas: Canvas) {
         canvas.drawBitmap(
             BitmapFactory.decodeFile(file.absolutePath), // TODO avoid blocking in runtime
-            Rect(0, 0, 0, 0),
+            null,
             canvas.viewPort(),
             null
         )
+    }
 
     private fun drawVector(canvas: Canvas) =
-        SVG.getFromInputStream(file.inputStream()).renderToCanvas(
-            canvas,
-            canvas.viewPort()
-        )
+        SVG.getFromInputStream(file.inputStream()).apply {
+            val viewPort = canvas.viewPort()
+            documentWidth = viewPort.width()
+            documentHeight = viewPort.height()
+            renderToCanvas(
+                canvas,
+                canvas.viewPort()
+            )
+        }
 }
 
 private class PictureDrawer(

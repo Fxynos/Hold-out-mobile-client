@@ -13,4 +13,12 @@
         <item name="android:tint">?attr/colorPrimaryVariant</item>
         <item name="android:backgroundTint">?attr/colorOnPrimary</item>
     </style>
+
+    <style name="ButtonStyle" parent="Widget.AppCompat.Button">
+        <item name="android:textColor">?attr/colorPrimaryVariant</item>
+        <item name="android:background">@drawable/rounded</item>
+        <item name="android:backgroundTint">?attr/colorPrimary</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>
