@@ -15,8 +15,14 @@ class FlyAwayPullAnimator(
     private val destinationOffsetX: Float,
     private val destinationOffsetDegree: Float,
     private val returnDuration: Long,
-    private val returnOffsetY: Float
+    private val returnOffsetY: Float,
+    private val animationEndCallback: ((animationCode: Int)->Unit)? = null
 ): OnPullListener, Lock {
+    companion object {
+        const val ANIMATION_FLEW_AWAY = 0
+        const val ANIMATION_ARRIVED = 1
+    }
+
     private var isLastAnimationStep = false
 
     override fun onPull(event: PullDispatcher.Event) {
@@ -42,10 +48,11 @@ class FlyAwayPullAnimator(
             override fun onAnimationEnd(animation: Animator) =
                 if (isLastAnimationStep) {
                     isLastAnimationStep = false
+                    animationEndCallback?.invoke(ANIMATION_ARRIVED)
                     event.unlock(this@FlyAwayPullAnimator).let {}
-                }
-                else {
+                } else {
                     isLastAnimationStep = true
+                    animationEndCallback?.invoke(ANIMATION_FLEW_AWAY)
                     event.view.rotation = 0f
                     event.view.x = event.x
                     event.view.y = event.y - returnOffsetY

@@ -26,7 +26,7 @@ import kotlin.streams.toList
 
 class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
     companion object {
-        const val baseUrl = "http://192.168.205.23"
+        const val baseUrl = "http://192.168.0.10"
     }
 
     private lateinit var questsDir: File

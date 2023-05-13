@@ -17,10 +17,10 @@ class BinaryAskDialog(
     private val negativeAnswer: String,
     private val onChoice: (positive: Boolean)->Unit
 ): DialogFragment() {
-    lateinit var titleView: TextView
-    lateinit var textView: TextView
-    lateinit var positiveButton: Button
-    lateinit var negativeButton: Button
+    private lateinit var titleView: TextView
+    private lateinit var textView: TextView
+    private lateinit var positiveButton: Button
+    private lateinit var negativeButton: Button
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -28,7 +28,7 @@ class BinaryAskDialog(
         savedInstanceState: Bundle?
     ): View {
         isCancelable = true
-        val view = View.inflate(requireContext(), R.layout.dialog_binary_ask, container)//inflater.inflate(R.layout.dialog_binary_ask, container, false)
+        val view = inflater.inflate(R.layout.dialog_binary_ask, container, false)
         titleView = view.findViewById<TextView>(R.id.title).also { it.text = title }
         textView = view.findViewById<TextView>(R.id.text).also { it.text = text }
         positiveButton = view.findViewById<Button>(R.id.pos_button).also {

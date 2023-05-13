@@ -1,11 +1,16 @@
 package com.vl.holdout
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
+import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.annotation.SuppressLint
 import android.graphics.*
 import android.os.Bundle
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import com.vl.barview.BarView
@@ -14,24 +19,22 @@ import com.vl.holdout.parser.pojo.Bar
 import com.vl.holdout.parser.pojo.Card
 import com.vl.holdout.parser.pojo.Choice
 import com.vl.holdout.pull.*
-import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.IntStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
+import kotlin.collections.HashMap
 import kotlin.math.abs
 
 @SuppressLint("ClickableViewAccessibility")
-class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
+class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     companion object {
-        const val IMAGE_SIZE = 480 // FIXME
+        const val IMAGE_SIZE = 480
     }
 
     private val rand = Random(System.currentTimeMillis())
     private lateinit var currentCard: Card
+    private var pendingCard: Card? = null // card that will be loaded after previous one flew away
     private lateinit var cardCanvas: Canvas
 
     private lateinit var cardView: CardView
@@ -45,15 +48,16 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
     private lateinit var barViews: Array<BarView>
     private lateinit var bars: Map<Bar, BarView>
 
+    private val fadeAppearAnimator = ValueAnimator()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
-        initViews(savedInstanceState)
+        initViews()
         Bitmap.createBitmap(IMAGE_SIZE, IMAGE_SIZE, Bitmap.Config.ARGB_8888).also {
             cardCanvas = Canvas(it)
             image.setImageBitmap(it)
         }
-        initQuest(intent.getStringExtra("quest")!!)
         cardView.post {
             dispatcher = PullDispatcher(
                 findViewById(R.id.pull_area),
@@ -74,7 +78,16 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
                             60f,
                             3000,
                             cardView.height * 4f
-                        ),
+                        ) { // On fly animation end
+                            when (it) {
+                                FlyAwayPullAnimator.ANIMATION_FLEW_AWAY ->
+                                    preloadCard(pendingCard!!)
+                                FlyAwayPullAnimator.ANIMATION_ARRIVED -> {
+                                    loadCard(pendingCard!!)
+                                    startTextsAppearing()
+                                }
+                            }
+                          },
                         ChoiceHandler(this)
                     ),
                     listOf( // On return
@@ -82,30 +95,29 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
                     )
                 ) { event -> abs(event.dx) >= event.rangeHorizontal / 2 }
             )
+            fadeAppearAnimator.addUpdateListener {
+                val value = it.animatedValue as Float
+                text.alpha = value
+                actor.alpha = value
+            }
+            fadeAppearAnimator.addListener(object: AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    dispatcher.unlock(this@GameActivity)
+                }
+            })
+            fadeAppearAnimator.duration = 250
+            fadeAppearAnimator.interpolator = AccelerateInterpolator()
+            initQuest(intent.getStringExtra("quest")!!)
         }
-
-        /*demonstrate(findViewById(R.id.character_bar), 3000)
-        demonstrate(findViewById(R.id.health_bar), 5000)
-        demonstrate(findViewById(R.id.knowledge_bar), 1000)
-        demonstrate(findViewById(R.id.wealth_bar), 8000)*/ //TODO
     }
 
     override fun onChoice(choiceId: Int) {
         when (choiceId) {
             ChoiceHandler.CHOICE_LEFT -> applyChoice(currentCard.choices[0])
             ChoiceHandler.CHOICE_RIGHT -> applyChoice(currentCard.choices[1])
+            else -> throw RuntimeException() // unreachable
         }
-        /*when (choiceId) {
-            ChoiceHandler.CHOICE_LEFT, ChoiceHandler.CHOICE_RIGHT -> {
-                Toast.makeText(
-                    this,
-                    "choice: ${if (choiceId == ChoiceHandler.CHOICE_LEFT) "left" else "right"}",
-                    Toast.LENGTH_SHORT
-                ).show()
-                //dispatcher.lock(object: Lock {})
-            }
-            else -> throw IllegalArgumentException("unknown choice id")
-        }*/
+        startTextsFading()
     }
 
     private fun initQuest(questName: String) {
@@ -113,15 +125,22 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
         val main = parse(questRoot).core["main"]
         bars = IntStream.range(0, main.bars.size).mapToObj { i ->
             val pair = main.bars[i] to barViews[i]
-            pair.apply{ second.progress = first.value.toFloat() }
+            pair.apply{
+                second.progress = first.value.toFloat()
+                second.setDrawable(first.image)
+            }
         }.collect(Collectors.toMap(
             { it.first },
             { it.second }
         ))
         applyChoice(main.choice)
+        pendingCard!!.also {
+            preloadCard(it)
+            loadCard(it)
+        }
     }
 
-    private fun initViews(savedInstanceState: Bundle?) {
+    private fun initViews() {
         barViews = arrayOf(
             findViewById(R.id.bar1),
             findViewById(R.id.bar2),
@@ -139,36 +158,77 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener {
 
     private fun parse(root: File) = Parser.load(root)
 
-    /*private fun demonstrate(view: BarView, duration: Long) {
-        val anim = ValueAnimator.ofFloat(0f, 1f)
-        anim.interpolator = LinearInterpolator()
-        anim.duration = duration
-        anim.repeatCount = ValueAnimator.INFINITE
-        anim.repeatMode = ValueAnimator.REVERSE
-        anim.addUpdateListener {
-                value -> view.progress = value.animatedValue as Float
-        }
-        anim.start()
-    }*/
+    /* Card updates */
 
-    /* ... */
-
+    /**
+     * Apply affects (with animation) and prepare next card to be loaded
+     */
     private fun applyChoice(choice: Choice) {
+        val affects = HashMap<BarView, Pair<Float, Float>>()
         choice.affects.forEach { (bar, affect) ->
-            bars[bar]!!.apply {
-                progress = if (affect.type == Choice.Affect.Type.EXPLICIT)
-                    affect.value.toFloat()
-                else
-                    maxOf(minOf(progress + affect.value.toFloat(), 1f), 0f)
-            }
+            val barView = bars[bar]!!
+            val targetProgress = if (affect.type == Choice.Affect.Type.EXPLICIT)
+                affect.value.toFloat()
+            else
+                maxOf(minOf(barView.progress + affect.value.toFloat(), 1f), 0f)
+            affects[barView] = barView.progress to targetProgress
         }
-        loadCard(choice.cards.let { it[rand.nextInt(it.size)] })
+        val animator = BarsAffectAnimator(affects)
+        dispatcher.lock(animator)
+        animator.addListener(object: AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                dispatcher.unlock(animator)
+            }
+        })
+        animator.start()
+        pendingCard = choice.cards.let { it[rand.nextInt(it.size)] }
+    }
+
+    private fun preloadCard(card: Card) {
+        currentCard = card
+        Arrays.stream(card.picture.layers).forEach { it.accept(cardCanvas) } // drawing
     }
 
     private fun loadCard(card: Card) {
-        currentCard = card
         text.text = card.text
         actor.text = card.title
-        Arrays.stream(card.picture.layers).forEach { it.accept(cardCanvas) }
+    }
+
+    private fun cancelIfAnimation() {
+        if (fadeAppearAnimator.isRunning) {
+            fadeAppearAnimator.pause()
+            fadeAppearAnimator.cancel()
+        }
+    }
+
+    private fun startTextsFading() {
+        cancelIfAnimation()
+        fadeAppearAnimator.setFloatValues(1f, 0f)
+        fadeAppearAnimator.start()
+    }
+
+    private fun startTextsAppearing() {
+        dispatcher.lock(this)
+        cancelIfAnimation()
+        fadeAppearAnimator.setFloatValues(0f, 1f)
+        fadeAppearAnimator.start()
+    }
+}
+
+private class BarsAffectAnimator(
+    private val affects: Map<BarView, Pair<Float, Float>>
+): ValueAnimator(), AnimatorUpdateListener, Lock {
+    init {
+        duration = 250
+        setFloatValues(0f, 1f)
+        addUpdateListener(this)
+        interpolator = DecelerateInterpolator()
+    }
+
+    override fun onAnimationUpdate(animator: ValueAnimator) {
+        val percent = animator.animatedValue as Float
+        affects.forEach { (bar, startToTarget) ->
+            bar.progress = startToTarget.first + (startToTarget.second - startToTarget.first) * percent
+        }
     }
 }

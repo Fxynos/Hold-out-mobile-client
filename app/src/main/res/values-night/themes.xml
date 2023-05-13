@@ -13,6 +13,6 @@
 
         <item name="android:textViewStyle">@style/TextViewStyle</item>
         <item name="imageButtonStyle">@style/ImageButtonStyle</item>
-        <item name="buttonStyle">@style/ButtonStyle</item>
+        <item name="android:buttonStyle">@style/ButtonStyle</item>
     </style>
 </resources>
