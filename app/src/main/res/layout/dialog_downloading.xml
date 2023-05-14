@@ -13,6 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/loading_header"
+        android:textStyle="bold"
         android:textSize="@dimen/header_dialog"/>
 
     <TextView
@@ -27,6 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginVertical="24dp"
+        android:textFontWeight="200"
         tools:text="Распасковка..."/>
 
 </LinearLayout>

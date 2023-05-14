@@ -14,5 +14,7 @@
         <item name="android:textViewStyle">@style/TextViewStyle</item>
         <item name="imageButtonStyle">@style/ImageButtonStyle</item>
         <item name="android:buttonStyle">@style/ButtonStyle</item>
+
+        <item name="android:fontFamily">@font/oswald</item>
     </style>
 </resources>
