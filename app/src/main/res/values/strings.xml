@@ -3,4 +3,8 @@
     <string name="stories_header">Истории</string>
     <string name="loading_header">Загрузка</string>
     <string name="downloading_story_title">Установка новой истории \"%1$s\"</string>
+    <string name="play_button">Играть</string>
+    <string name="settings_button">Настройки</string>
+    <string name="settings">Настройки</string>
+    <string name="sound_flag">Звук</string>
 </resources>

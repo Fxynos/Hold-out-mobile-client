@@ -5,7 +5,10 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
 import android.graphics.*
+import android.media.SoundPool
 import android.os.Bundle
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -49,10 +52,12 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private lateinit var bars: Map<Bar, BarView>
 
     private val fadeAppearAnimator = ValueAnimator()
+    private lateinit var soundPlayer: SoundPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
+        soundPlayer = SoundPlayer(this, 3)
         initViews()
         Bitmap.createBitmap(IMAGE_SIZE, IMAGE_SIZE, Bitmap.Config.ARGB_8888).also {
             cardCanvas = Canvas(it)
@@ -80,8 +85,10 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                             cardView.height * 4f
                         ) { // On fly animation end
                             when (it) {
-                                FlyAwayPullAnimator.ANIMATION_FLEW_AWAY ->
+                                FlyAwayPullAnimator.ANIMATION_FLEW_AWAY -> {
                                     preloadCard(pendingCard!!)
+                                    soundPlayer.play(soundPlayer.soundCardArrive, 1f, 1f)
+                                }
                                 FlyAwayPullAnimator.ANIMATION_ARRIVED -> {
                                     loadCard(pendingCard!!)
                                     startTextsAppearing()
@@ -111,6 +118,11 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         }
     }
 
+    override fun onBackPressed() {
+        startActivity(Intent(this, MenuActivity::class.java))
+        finish()
+    }
+
     override fun onChoice(choiceId: Int) {
         when (choiceId) {
             ChoiceHandler.CHOICE_LEFT -> applyChoice(currentCard.choices[0])
@@ -118,6 +130,11 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             else -> throw RuntimeException() // unreachable
         }
         startTextsFading()
+        soundPlayer.play(
+            soundPlayer.soundCardFlyAway,
+            if (choiceId == ChoiceHandler.CHOICE_LEFT) 1f else 0.5f,
+            if (choiceId == ChoiceHandler.CHOICE_RIGHT) 1f else 0.5f
+        )
     }
 
     private fun initQuest(questName: String) {
@@ -230,5 +247,28 @@ private class BarsAffectAnimator(
         affects.forEach { (bar, startToTarget) ->
             bar.progress = startToTarget.first + (startToTarget.second - startToTarget.first) * percent
         }
+    }
+}
+
+private class SoundPlayer(context: Context, maxStreams: Int) { // on its own checks whether sound is enabled
+    private val soundPool = SoundPool.Builder().setMaxStreams(maxStreams).build()
+
+    var soundCardFlyAway: Int = -1
+        private set
+    var soundCardArrive: Int = -1
+        private set
+
+    val isSoundEnabled = SettingsShared(context).isSoundEnabled
+
+    init {
+        if (isSoundEnabled) {
+            soundCardFlyAway = soundPool.load(context, R.raw.click, 1)
+            soundCardArrive = soundPool.load(context, R.raw.paper_turn, 1)
+        }
+    }
+
+    fun play(sound: Int, lVol: Float, rVol: Float) {
+        if (isSoundEnabled)
+            soundPool.play(sound, lVol, rVol, 1, 0 /* no loop */, 1f /* speed */)
     }
 }

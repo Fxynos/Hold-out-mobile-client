@@ -5,7 +5,7 @@
     android:orientation="vertical"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="@color/kinda_light_brown"
+    android:background="?attr/colorSecondary"
     tools:context=".quests.QuestsActivity">
 
     <com.google.android.material.appbar.AppBarLayout

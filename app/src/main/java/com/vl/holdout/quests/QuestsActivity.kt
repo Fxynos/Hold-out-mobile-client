@@ -2,12 +2,14 @@ package com.vl.holdout.quests
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.vl.holdout.GameActivity
+import com.vl.holdout.MenuActivity
 import com.vl.holdout.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -47,6 +49,11 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
         adapter = QuestsListAdapter(this, this)
         findViewById<RecyclerView>(R.id.stories_list).adapter = adapter
         fillList()
+    }
+
+    override fun onBackPressed() {
+        startActivity(Intent(this, MenuActivity::class.java))
+        finish()
     }
 
     override fun onDownloadClick(quest: AvailableQuest) {
