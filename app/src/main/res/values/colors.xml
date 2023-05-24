@@ -5,6 +5,8 @@
     <color name="kinda_brown">#D5AB62</color>
     <color name="kinda_dark_brown">#271D0D</color>
 
+    <color name="shadow">#AA000000</color>
+
     <color name="green">#0F0</color>
     <color name="red">#F00</color>
 </resources>

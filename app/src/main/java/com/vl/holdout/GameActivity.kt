@@ -10,8 +10,10 @@ import android.content.Intent
 import android.graphics.*
 import android.media.SoundPool
 import android.os.Bundle
+import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -29,10 +31,13 @@ import java.util.stream.IntStream
 import kotlin.collections.HashMap
 import kotlin.math.abs
 
+// FIXME almost God object anti-pattern
 @SuppressLint("ClickableViewAccessibility")
 class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     companion object {
         const val IMAGE_SIZE = 480
+        const val DURATION_ANSWER_APPEARING = 250L
+        const val DURATION_TEXT_APPEARING = 250L
     }
 
     private val rand = Random(System.currentTimeMillis())
@@ -42,6 +47,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
 
     private lateinit var cardView: CardView
     private lateinit var image: ImageView
+    private lateinit var answer: TextView
+    private lateinit var answerContainer: ViewGroup
     private lateinit var text: TextView
     private lateinit var actor: TextView
     private lateinit var name: TextView
@@ -52,68 +59,24 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private lateinit var bars: Map<Bar, BarView>
 
     private val fadeAppearAnimator = ValueAnimator()
+    private val answerAnimator = ValueAnimator()
     private lateinit var soundPlayer: SoundPlayer
+
+    private var cardReleased = true // used to track start of card pulling by answer container animator
+    private var currentShownChoice: Int? = null // used to change choice titles (values {0, 1})
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         soundPlayer = SoundPlayer(this, 3)
         initViews()
+        initAnimators()
         Bitmap.createBitmap(IMAGE_SIZE, IMAGE_SIZE, Bitmap.Config.ARGB_8888).also {
             cardCanvas = Canvas(it)
             image.setImageBitmap(it)
         }
         cardView.post {
-            dispatcher = PullDispatcher(
-                findViewById(R.id.pull_area),
-                cardView,
-                cardView.width.toFloat(),
-                cardView.height.toFloat()
-            )
-            dispatcher.addOnPullListeners(
-                RotatePullAnimator(30f),
-                MovePullAnimator(1f, 2f)
-            )
-            dispatcher.addOnReleaseListeners(
-                ConditionalPullHandler(
-                    listOf( // On choice
-                        FlyAwayPullAnimator(
-                            1000,
-                            cardView.width * 2f,
-                            60f,
-                            3000,
-                            cardView.height * 4f
-                        ) { // On fly animation end
-                            when (it) {
-                                FlyAwayPullAnimator.ANIMATION_FLEW_AWAY -> {
-                                    preloadCard(pendingCard!!)
-                                    soundPlayer.play(soundPlayer.soundCardArrive, 1f, 1f)
-                                }
-                                FlyAwayPullAnimator.ANIMATION_ARRIVED -> {
-                                    loadCard(pendingCard!!)
-                                    startTextsAppearing()
-                                }
-                            }
-                          },
-                        ChoiceHandler(this)
-                    ),
-                    listOf( // On return
-                        ReleasePullAnimator(250)
-                    )
-                ) { event -> abs(event.dx) >= event.rangeHorizontal / 2 }
-            )
-            fadeAppearAnimator.addUpdateListener {
-                val value = it.animatedValue as Float
-                text.alpha = value
-                actor.alpha = value
-            }
-            fadeAppearAnimator.addListener(object: AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    dispatcher.unlock(this@GameActivity)
-                }
-            })
-            fadeAppearAnimator.duration = 250
-            fadeAppearAnimator.interpolator = AccelerateInterpolator()
+            initPullDispatcher()
             initQuest(intent.getStringExtra("quest")!!)
         }
     }
@@ -137,6 +100,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         )
     }
 
+    /* Initialization */
+
     private fun initQuest(questName: String) {
         val questRoot = File(File(this.applicationInfo.dataDir, "quests"), questName)
         val main = parse(questRoot).core["main"]
@@ -157,6 +122,84 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         }
     }
 
+    private fun initPullDispatcher() {
+        dispatcher = PullDispatcher(
+            findViewById(R.id.pull_area),
+            cardView,
+            cardView.width.toFloat(),
+            cardView.height.toFloat()
+        )
+        dispatcher.addOnPullListeners(
+            RotatePullAnimator(30f),
+            MovePullAnimator(1f, 2f),
+            { event ->
+                answer.rotation = -cardView.rotation
+                if (cardReleased) {
+                    cardReleased = false
+                    startAnswerAlphaAnimation(1f)
+                }
+                (if (event.dx < 0f) 0 else 1).takeIf { currentShownChoice != it }?.also {
+                    currentShownChoice = it
+                    answer.text = currentCard.choices[it].title
+                }
+            }
+        )
+        dispatcher.addOnReleaseListeners(
+            ConditionalPullHandler(
+                listOf( // On choice
+                    FlyAwayPullAnimator(
+                        1000,
+                        cardView.width * 2f,
+                        60f,
+                        3000,
+                        cardView.height * 4f
+                    ) { // On fly animation end
+                        when (it) {
+                            FlyAwayPullAnimator.ANIMATION_FLEW_AWAY -> {
+                                preloadCard(pendingCard!!)
+                                soundPlayer.play(soundPlayer.soundCardArrive, 1f, 1f)
+                            }
+                            FlyAwayPullAnimator.ANIMATION_ARRIVED -> {
+                                loadCard(pendingCard!!)
+                                startTextsAppearing()
+                            }
+                        }
+                    },
+                    ChoiceHandler(this)
+                ),
+                listOf( // On return
+                    ReleasePullAnimator(250)
+                )
+            ) { event -> abs(event.dx) >= event.rangeHorizontal / 2 },
+            {
+                cardReleased = true
+                currentShownChoice = null
+                startAnswerAlphaAnimation(0f)
+            }
+        )
+    }
+
+    private fun initAnimators() {
+        fadeAppearAnimator.addUpdateListener {
+            val value = it.animatedValue as Float
+            text.alpha = value
+            actor.alpha = value
+        }
+        fadeAppearAnimator.addListener(object: AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                dispatcher.unlock(this@GameActivity)
+            }
+        })
+        fadeAppearAnimator.duration = DURATION_TEXT_APPEARING
+        fadeAppearAnimator.interpolator = AccelerateInterpolator()
+
+        answerAnimator.addUpdateListener {
+            answerContainer.alpha = it.animatedValue as Float
+        }
+        answerAnimator.duration = DURATION_ANSWER_APPEARING
+        answerAnimator.interpolator = LinearInterpolator()
+    }
+
     private fun initViews() {
         barViews = arrayOf(
             findViewById(R.id.bar1),
@@ -164,6 +207,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             findViewById(R.id.bar3),
             findViewById(R.id.bar4)
         )
+        answer = findViewById(R.id.answer)
+        answerContainer = findViewById(R.id.answer_shadow)
         text = findViewById(R.id.text)
         actor = findViewById(R.id.actor)
         name = findViewById(R.id.self_name)
@@ -211,22 +256,28 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         actor.text = card.title
     }
 
-    private fun cancelIfAnimation() {
-        if (fadeAppearAnimator.isRunning) {
-            fadeAppearAnimator.pause()
-            fadeAppearAnimator.cancel()
+    private fun cancelIfAnimation(animator: ValueAnimator) {
+        if (animator.isRunning) {
+            animator.pause()
+            animator.cancel()
         }
     }
 
+    private fun startAnswerAlphaAnimation(alpha: Float) {
+        cancelIfAnimation(answerAnimator)
+        answerAnimator.setFloatValues(answerAnimator.animatedValue as Float? ?: 0f, alpha)
+        answerAnimator.start()
+    }
+
     private fun startTextsFading() {
-        cancelIfAnimation()
+        cancelIfAnimation(fadeAppearAnimator)
         fadeAppearAnimator.setFloatValues(1f, 0f)
         fadeAppearAnimator.start()
     }
 
     private fun startTextsAppearing() {
         dispatcher.lock(this)
-        cancelIfAnimation()
+        cancelIfAnimation(fadeAppearAnimator)
         fadeAppearAnimator.setFloatValues(0f, 1f)
         fadeAppearAnimator.start()
     }
