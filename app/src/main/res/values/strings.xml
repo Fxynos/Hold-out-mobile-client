@@ -7,4 +7,5 @@
     <string name="settings_button">Настройки</string>
     <string name="settings">Настройки</string>
     <string name="sound_flag">Звук</string>
+    <string name="no_connection">Нет подключения</string>
 </resources>

@@ -2,28 +2,34 @@ package com.vl.holdout.quests
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.vl.holdout.GameActivity
+import com.vl.holdout.InfoToast
 import com.vl.holdout.MenuActivity
 import com.vl.holdout.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.*
+import java.util.concurrent.TimeUnit
+import java.util.stream.IntStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import kotlin.NoSuchElementException
 import kotlin.collections.ArrayList
+import kotlin.jvm.optionals.getOrNull
 import kotlin.streams.toList
 
 class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
@@ -35,7 +41,15 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
     private lateinit var downloadsDir: File
 
     private lateinit var adapter: QuestsListAdapter
+    private var availableQuests: List<AvailableQuest>? = null
     private val client = Retrofit.Builder().baseUrl(baseUrl)
+        .client(
+            OkHttpClient.Builder()
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .writeTimeout(1, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .build()
+        )
         .addConverterFactory(GsonConverterFactory.create()).build()
         .create(QuestsAPI::class.java)
 
@@ -125,47 +139,63 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
         }
     }
 
-    @SuppressLint("NotifyDataSetChanged")
-    private fun insertToList(quest: LoadedQuest) {
-        adapter.quests.add(quest)
-        adapter.quests = kotlin.collections.ArrayList(adapter.quests.stream().filter {
-            it is LoadedQuest || it.name != quest.name
-        }.toList())
-        adapter.notifyDataSetChanged()
+    private fun insertToList(quest: LoadedQuest) { // list must already contain AvailableQuest with the same name
+        IntStream.range(0, adapter.quests.size)
+            .filter { i -> adapter.quests[i].let { it is AvailableQuest && it.name == quest.name } }
+            .findAny().asInt.let {
+                adapter.quests[it] = quest
+                adapter.notifyItemChanged(it)
+            }
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     private fun removeFromList(quest: LoadedQuest) {
-        adapter.quests = kotlin.collections.ArrayList(adapter.quests.stream().filter {
-            it != quest && it is LoadedQuest
-        }.toList())
-        lifecycleScope.launch {
-            adapter.quests.addAll(loadAvailableQuests())
-            withContext(Dispatchers.Main) {
-                adapter.notifyDataSetChanged()
+        adapter.quests.indexOf(quest).takeUnless { it < 0 }?.also { index ->
+            availableQuests?.stream()?.filter { aQuest -> aQuest.name == quest.name }
+                ?.findAny()?.getOrNull()?.also {
+                    adapter.quests[index] = it
+                    adapter.notifyItemChanged(index)
+                } ?: kotlin.run {
+                    adapter.quests.removeAt(index)
+                    adapter.notifyItemRemoved(index)
             }
-        }
+        } ?: throw NoSuchElementException("No such quest: \"${quest.name}\"")
     }
 
     private fun fillList() {
-        val quests = mutableListOf<Quest>()
-        Arrays.stream(questsDir.listFiles()!!)
+        adapter.quests = ArrayList(Arrays.stream(questsDir.listFiles()!!)
             .filter { it.isDirectory }
-            .map { LoadedQuest(it.name) }.toList().also { quests.addAll(it) }
+            .map { LoadedQuest(it.name) }.toList())
+        val localLoadedCount = adapter.quests.size
+        adapter.notifyItemRangeInserted(0, localLoadedCount) // loaded quests from package
+
         lifecycleScope.launch {
-            quests.addAll(loadAvailableQuests().stream().filter { !quests.contains(it) }.toList())
+            availableQuests = loadAvailableQuests()?.also {
+                adapter.quests.addAll(it.stream().filter {
+                        availableQuest -> !adapter.quests.contains(availableQuest)
+                }.toList())
+            }
             withContext(Dispatchers.Main) {
-                adapter.quests = quests
-                adapter.notifyItemRangeInserted(0, quests.size)
+                availableQuests?.also {
+                    if (adapter.quests.size > localLoadedCount)
+                        adapter.notifyItemRangeInserted(localLoadedCount, adapter.quests.size)
+                } ?: InfoToast(
+                    this@QuestsActivity,
+                    getString(R.string.no_connection),
+                    R.drawable.ic_wifi_off
+                ).show()
             }
         }
     }
 
-    private suspend fun loadAvailableQuests(): List<AvailableQuest> {
-        val list: List<AvailableQuest>
+    private suspend fun loadAvailableQuests(): List<AvailableQuest>? { // returns null on network error
+        var list: List<AvailableQuest>? = null
         withContext(Dispatchers.IO) {
-            list = client.getList().execute().body()!!.stream()
-                .map { AvailableQuest(it) }.toList()
+            try {
+                list = client.getList().execute().body()!!.stream()
+                    .map { AvailableQuest(it) }.toList()
+            } catch (exception: IOException) {
+                exception.printStackTrace()
+            }
         }
         return list
     }
