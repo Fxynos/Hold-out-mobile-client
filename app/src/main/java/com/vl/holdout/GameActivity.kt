@@ -29,14 +29,18 @@ import com.vl.holdout.parser.pojo.Bar
 import com.vl.holdout.parser.pojo.Card
 import com.vl.holdout.parser.pojo.Choice
 import com.vl.holdout.pull.*
+import com.vl.holdout.quests.BinaryAskDialog
+import com.vl.holdout.quests.QuestsActivity
 import java.io.File
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.IntStream
+import java.util.stream.Stream
 import kotlin.collections.HashMap
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
+import kotlin.streams.toList
 
 // FIXME almost God object anti-pattern
 @SuppressLint("ClickableViewAccessibility")
@@ -89,7 +93,26 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         }
         cardView.post {
             initPullDispatcher()
-            initQuest(intent.getStringExtra("quest")!!)
+            try {
+                initQuest(intent.getStringExtra("quest")!!)
+            } catch (e: Throwable) {
+                BinaryAskDialog(
+                    "Не удалось загрузить игру",
+                    e.message?.let { "Ошибка: \"$it\"" } ?: "Неизвестная ошибка",
+                    "Главное меню",
+                    "К списку",
+                    false
+                ) {
+                    startActivity(Intent(
+                        this,
+                        if (it) MenuActivity::class.java else QuestsActivity::class.java
+                    ))
+                    finish()
+                }.apply {
+                    isCancelable = false
+                    show(supportFragmentManager, null)
+                }
+            }
         }
     }
 
@@ -285,7 +308,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     }
 
     /**
-     * Apply affects (with animation) and prepare next card to be loaded
+     * Apply affects (with animation) and prepare next card to be loaded.
      */
     private fun applyChoice(choice: Choice) {
         val affects = HashMap<BarView, Pair<Float, Float>>()
@@ -305,7 +328,17 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             }
         })
         animator.start()
-        pendingCard = choice.cards.let { it[rand.nextInt(it.size)] }
+        val choices = bars.entries.stream().map {
+                entry -> when (affects[entry.value]?.second) {
+                    1f -> entry.key.triggers[Bar.TRIGGER_MAX]
+                    0f -> entry.key.triggers[Bar.TRIGGER_MIN]
+                    else -> null
+                }
+        }.filter(Objects::nonNull).map { it!! }.toList()
+        pendingCard = (
+                choices.takeIf(List<Choice>::isNotEmpty)?.get(rand.nextInt(choices.size)) // apply one of triggers
+                ?: choice // otherwise expected choice is applied
+        ).cards.let { it[rand.nextInt(it.size)] }
     }
 
     private fun preloadCard(card: Card) {

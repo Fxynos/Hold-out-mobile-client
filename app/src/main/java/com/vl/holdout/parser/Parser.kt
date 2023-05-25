@@ -80,7 +80,7 @@ object Parser {
                         throw ParseException("Unknown type \"${typeAndObjects.key}\"")
                 ) to when (typeAndObjects.key) {
                     "core" -> CoreConstructor(repositories["choice"] as Repository<Choice>, repositories["bar"] as Repository<Bar>)
-                    "bar" -> BarConstructor(root)
+                    "bar" -> BarConstructor(root, repositories["choice"] as Repository<Choice>)
                     "picture" -> PictureConstructor(repositories["picture"] as Repository<Picture>, root)
                     "choice" -> ChoiceConstructor(repositories["card"] as Repository<Card>, repositories["bar"] as Repository<Bar>)
                     "card" -> CardConstructor(repositories["choice"] as Repository<Choice>, repositories["picture"] as Repository<Picture>)

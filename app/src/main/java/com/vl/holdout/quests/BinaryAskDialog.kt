@@ -15,6 +15,7 @@ class BinaryAskDialog(
     private val text: String,
     private val positiveAnswer: String,
     private val negativeAnswer: String,
+    private val cancelable: Boolean,
     private val onChoice: (positive: Boolean)->Unit
 ): DialogFragment() {
     private lateinit var titleView: TextView
@@ -27,7 +28,7 @@ class BinaryAskDialog(
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        isCancelable = true
+        requireDialog().setCancelable(cancelable)
         val view = inflater.inflate(R.layout.dialog_binary_ask, container, false)
         titleView = view.findViewById<TextView>(R.id.title).also { it.text = title }
         textView = view.findViewById<TextView>(R.id.text).also { it.text = text }

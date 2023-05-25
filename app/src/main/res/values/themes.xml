@@ -11,6 +11,8 @@
         <item name="android:windowBackground">?attr/colorPrimaryVariant</item>
         <item name="android:statusBarColor">?attr/colorPrimary</item>
 
+        <item name="colorAccent">?attr/colorPrimary</item>
+
         <item name="android:textViewStyle">@style/TextViewStyle</item>
         <item name="imageButtonStyle">@style/ImageButtonStyle</item>
         <item name="android:buttonStyle">@style/ButtonStyle</item>

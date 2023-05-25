@@ -11,6 +11,7 @@ import com.vl.holdout.GameActivity
 import com.vl.holdout.InfoToast
 import com.vl.holdout.MenuActivity
 import com.vl.holdout.R
+import com.vl.holdout.SettingsShared
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -33,29 +34,25 @@ import kotlin.jvm.optionals.getOrNull
 import kotlin.streams.toList
 
 class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
-    companion object {
-        const val baseUrl = "http://192.168.0.10"
-    }
-
     private lateinit var questsDir: File
     private lateinit var downloadsDir: File
-
+    private lateinit var client: QuestsAPI
     private lateinit var adapter: QuestsListAdapter
     private var availableQuests: List<AvailableQuest>? = null
-    private val client = Retrofit.Builder().baseUrl(baseUrl)
-        .client(
-            OkHttpClient.Builder()
-                .connectTimeout(3, TimeUnit.SECONDS)
-                .writeTimeout(1, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .build()
-        )
-        .addConverterFactory(GsonConverterFactory.create()).build()
-        .create(QuestsAPI::class.java)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quests)
+        client = Retrofit.Builder().baseUrl("http://${SettingsShared(this).host}")
+            .client(
+                OkHttpClient.Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .writeTimeout(1, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.SECONDS)
+                    .build()
+            )
+            .addConverterFactory(GsonConverterFactory.create()).build()
+            .create(QuestsAPI::class.java)
         questsDir = File(applicationInfo.dataDir, "quests")
             .also { if (!it.exists()) it.mkdir() }
         downloadsDir = File(applicationInfo.dataDir, "downloads")
@@ -90,7 +87,8 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
             "Удалить квест?",
             "\"${quest.name}\" будет безвозвратно удалён",
             "Удалить",
-            "Отмена"
+            "Отмена",
+            true
         ) {
             if (it) lifecycleScope.launch {
                 delete(quest)

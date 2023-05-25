@@ -8,4 +8,5 @@
     <string name="settings">Настройки</string>
     <string name="sound_flag">Звук</string>
     <string name="no_connection">Нет подключения</string>
+    <string name="host_settings">HTTP Host</string>
 </resources>
