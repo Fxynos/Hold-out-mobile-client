@@ -24,4 +24,9 @@
     <style name="CheckboxStyle" parent="Widget.AppCompat.CompoundButton.CheckBox">
         <item name="android:button">@drawable/checkbox_button</item>
     </style>
+
+    <style name="WindowAnimationStyle">
+        <item name="android:activityOpenEnterAnimation">@anim/window_enter_animation</item>
+        <item name="android:activityOpenExitAnimation">@anim/window_exit_animation</item>
+    </style>
 </resources>

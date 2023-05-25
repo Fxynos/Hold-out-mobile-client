@@ -19,5 +19,7 @@
         <item name="android:checkboxStyle">@style/CheckboxStyle</item>
 
         <item name="android:fontFamily">@font/oswald</item>
+
+        <item name="android:windowAnimationStyle">@style/WindowAnimationStyle</item>
     </style>
 </resources>
