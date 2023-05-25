@@ -5,7 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:background="@drawable/rounded"
-    android:backgroundTint="@color/kinda_light_brown"
+    android:backgroundTint="?attr/colorOnPrimary"
     android:gravity="center_horizontal">
 
     <TextView

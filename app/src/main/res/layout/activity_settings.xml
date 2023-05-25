@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingHorizontal="24dp"
-    android:background="?attr/colorSecondary">
+    android:background="?attr/colorOnPrimary">
     
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -15,7 +15,7 @@
         <Toolbar
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorSecondary">
+            android:background="?attr/colorOnPrimary">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

@@ -22,6 +22,7 @@
     </style>
     
     <style name="CheckboxStyle" parent="Widget.AppCompat.CompoundButton.CheckBox">
+        <item name="android:textColor">?attr/colorPrimaryVariant</item>
         <item name="android:button">@drawable/checkbox_button</item>
     </style>
 

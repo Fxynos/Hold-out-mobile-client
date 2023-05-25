@@ -144,8 +144,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             it.data
         }
         eventBackgroundColors =
-            resolveInt(androidx.appcompat.R.attr.colorPrimary) to
-            resolveInt(com.google.android.material.R.attr.colorPrimaryVariant)
+            resolveInt(com.google.android.material.R.attr.colorSecondary) to
+            resolveInt(android.R.attr.windowBackground)
     }
 
     private fun initQuest(questName: String) {
@@ -303,8 +303,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             start()
         }
 
-        text.setTextColor(eventBackgroundColors.first)
-        actor.setTextColor(eventBackgroundColors.first)
+        text.setTextColor(getColor(R.color.kinda_light_brown))
+        actor.setTextColor(getColor(R.color.kinda_light_brown)) // TODO bind to theme
     }
 
     /**

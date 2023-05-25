@@ -5,7 +5,7 @@
     android:orientation="vertical"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="?attr/colorSecondary"
+    android:background="?attr/colorOnPrimary"
     tools:context=".quests.QuestsActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -15,7 +15,7 @@
         <androidx.appcompat.widget.Toolbar
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/kinda_light_brown">
+            android:background="?attr/colorOnPrimary">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
