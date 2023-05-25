@@ -64,8 +64,10 @@
 
     <TextView
         android:id="@+id/text"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:paddingHorizontal="48dp"
+        android:gravity="center_horizontal"
         app:layout_constraintLeft_toLeftOf="@id/event_background"
         app:layout_constraintRight_toRightOf="@id/event_background"
         app:layout_constraintTop_toTopOf="@id/event_background"
@@ -136,8 +138,10 @@
 
     <TextView
         android:id="@+id/actor"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:paddingHorizontal="48dp"
+        android:gravity="center_horizontal"
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintLeft_toLeftOf="@id/event_background"

@@ -10,12 +10,17 @@ import android.content.Intent
 import android.graphics.*
 import android.media.SoundPool
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.annotation.AttrRes
+import androidx.annotation.ColorInt
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import com.vl.barview.BarView
@@ -30,6 +35,8 @@ import java.util.stream.Collectors
 import java.util.stream.IntStream
 import kotlin.collections.HashMap
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.round
 
 // FIXME almost God object anti-pattern
 @SuppressLint("ClickableViewAccessibility")
@@ -38,6 +45,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         const val IMAGE_SIZE = 480
         const val DURATION_ANSWER_APPEARING = 250L
         const val DURATION_TEXT_APPEARING = 250L
+        const val DURATION_BACKGROUND_CHANGING = 500L
     }
 
     private val rand = Random(System.currentTimeMillis())
@@ -45,6 +53,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private var pendingCard: Card? = null // card that will be loaded after previous one flew away
     private lateinit var cardCanvas: Canvas
 
+    private lateinit var eventBackground: View
     private lateinit var cardView: CardView
     private lateinit var image: ImageView
     private lateinit var answer: TextView
@@ -65,9 +74,12 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private var cardReleased = true // used to track start of card pulling by answer container animator
     private var currentShownChoice: Int? = null // used to change choice titles (values {0, 1})
 
+    private lateinit var eventBackgroundColors: Pair<Int, Int> // default color to color for last card
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
+        resolveValues()
         soundPlayer = SoundPlayer(this, 3)
         initViews()
         initAnimators()
@@ -101,6 +113,17 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     }
 
     /* Initialization */
+
+    private fun resolveValues() {
+        val typed = TypedValue()
+        fun resolveInt(@AttrRes attr: Int) = typed.let {
+            theme.resolveAttribute(attr, it, true)
+            it.data
+        }
+        eventBackgroundColors =
+            resolveInt(androidx.appcompat.R.attr.colorPrimary) to
+            resolveInt(com.google.android.material.R.attr.colorPrimaryVariant)
+    }
 
     private fun initQuest(questName: String) {
         val questRoot = File(File(this.applicationInfo.dataDir, "quests"), questName)
@@ -207,6 +230,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             findViewById(R.id.bar3),
             findViewById(R.id.bar4)
         )
+        eventBackground = findViewById(R.id.event_background)
         answer = findViewById(R.id.answer)
         answerContainer = findViewById(R.id.answer_shadow)
         text = findViewById(R.id.text)
@@ -221,6 +245,44 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private fun parse(root: File) = Parser.load(root)
 
     /* Card updates */
+
+    private fun onLastCardLoaded() {
+        dispatcher.lock(object: Lock {}) // won't be unlocked after
+
+        fun calculateGradient(@ColorInt from: Int, @ColorInt to: Int, fraction: Float): Int {
+            val colors = Array(2) { j ->
+                val clr = eventBackgroundColors.let { if (j == 0) from else to }.let {
+                    if (it < 0) Integer.MAX_VALUE + it.toLong() - Int.MIN_VALUE else it.toLong()
+                }
+                IntArray(4) { i ->
+                    (clr / 0x100.toDouble().pow(i.toDouble()) % 0x100).toInt()
+                }
+            }
+            return IntStream.range(0, colors[0].size).map {
+                    i -> round((colors[1][i] - colors[0][i]) * fraction).toInt() + colors[0][i]
+            }.toArray().let { arr ->
+                IntStream.range(0, arr.size)
+                    .mapToLong { (arr[it] * 0x100.toDouble().pow(it)).toLong() }
+                    .reduce(Long::plus).asLong.toInt()
+            }
+        }
+
+        ValueAnimator().apply {
+            duration = DURATION_BACKGROUND_CHANGING
+            setFloatValues(1f)
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Float
+                eventBackground.setBackgroundColor(
+                    calculateGradient(eventBackgroundColors.first, eventBackgroundColors.second, value)
+                )
+            }
+            start()
+        }
+
+        text.setTextColor(eventBackgroundColors.first)
+        actor.setTextColor(eventBackgroundColors.first)
+    }
 
     /**
      * Apply affects (with animation) and prepare next card to be loaded
@@ -249,6 +311,8 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private fun preloadCard(card: Card) {
         currentCard = card
         Arrays.stream(card.picture.layers).forEach { it.accept(cardCanvas) } // drawing
+        if (currentCard.choices.size != 2)
+            onLastCardLoaded()
     }
 
     private fun loadCard(card: Card) {

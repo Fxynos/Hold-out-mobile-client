@@ -19,7 +19,8 @@ internal class CardConstructor(
 
     override fun finish(instance: Card, properties: Map<String, String>) {
         instance.choices = properties.require("choices").split(DELIMITER_ARRAY).stream()
-            .map { choicesRepository[it.trim()] }.toList().toTypedArray().also {
+            .map { it.trim() }.filter(String::isNotBlank)
+            .map { choicesRepository[it] }.toList().toTypedArray().also {
                 if (it.size != 2 && it.isNotEmpty())
                     throw ParseException("$type \"${instance.id}\" must contain 2 choices or no one if it is ending card")
             }

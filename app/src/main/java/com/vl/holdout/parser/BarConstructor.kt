@@ -31,5 +31,6 @@ internal class BarConstructor(
                 svg.documentWidth = VECTOR_SIZE.toFloat()
                 svg.documentHeight = VECTOR_SIZE.toFloat()
                 svg.renderToCanvas(Canvas(it))
-            }) else BitmapDrawable.createFromPath(resource.absolutePath)!!
+            }) else BitmapDrawable.createFromPath(resource.absolutePath)
+                ?: throw ParseException("Couldn't load file: ${resource.absolutePath}")
 }
