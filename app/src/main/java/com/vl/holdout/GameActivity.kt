@@ -35,6 +35,7 @@ import java.io.File
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.IntStream
+import java.util.stream.LongStream
 import java.util.stream.Stream
 import kotlin.collections.HashMap
 import kotlin.math.abs
@@ -271,25 +272,6 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
 
     private fun onLastCardLoaded() {
         dispatcher.lock(object: Lock {}) // won't be unlocked after
-
-        fun calculateGradient(@ColorInt from: Int, @ColorInt to: Int, fraction: Float): Int {
-            val colors = Array(2) { j ->
-                val clr = eventBackgroundColors.let { if (j == 0) from else to }.let {
-                    if (it < 0) Integer.MAX_VALUE + it.toLong() - Int.MIN_VALUE else it.toLong()
-                }
-                IntArray(4) { i ->
-                    (clr / 0x100.toDouble().pow(i.toDouble()) % 0x100).toInt()
-                }
-            }
-            return IntStream.range(0, colors[0].size).map {
-                    i -> round((colors[1][i] - colors[0][i]) * fraction).toInt() + colors[0][i]
-            }.toArray().let { arr ->
-                IntStream.range(0, arr.size)
-                    .mapToLong { (arr[it] * 0x100.toDouble().pow(it)).toLong() }
-                    .reduce(Long::plus).asLong.toInt()
-            }
-        }
-
         ValueAnimator().apply {
             duration = DURATION_BACKGROUND_CHANGING
             setFloatValues(1f)
@@ -302,7 +284,6 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
             }
             start()
         }
-
         text.setTextColor(getColor(R.color.kinda_light_brown))
         actor.setTextColor(getColor(R.color.kinda_light_brown)) // TODO bind to theme
     }
@@ -320,7 +301,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                 maxOf(minOf(barView.progress + affect.value.toFloat(), 1f), 0f)
             affects[barView] = barView.progress to targetProgress
         }
-        val animator = BarsAffectAnimator(affects)
+        val animator = BarsAffectAnimator(this, affects)
         dispatcher.lock(animator)
         animator.addListener(object: AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
@@ -381,10 +362,11 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
 }
 
 private class BarsAffectAnimator(
+    private val context: Context,
     private val affects: Map<BarView, Pair<Float, Float>>
 ): ValueAnimator(), AnimatorUpdateListener, Lock {
     init {
-        duration = 250
+        duration = 1000
         setFloatValues(0f, 1f)
         addUpdateListener(this)
         interpolator = DecelerateInterpolator()
@@ -392,8 +374,12 @@ private class BarsAffectAnimator(
 
     override fun onAnimationUpdate(animator: ValueAnimator) {
         val percent = animator.animatedValue as Float
-        affects.forEach { (bar, startToTarget) ->
-            bar.progress = startToTarget.first + (startToTarget.second - startToTarget.first) * percent
+        affects.forEach { (barView, startToTarget) ->
+            barView.progress = startToTarget.first + (startToTarget.second - startToTarget.first) * percent
+            barView.setActiveColor(calculateGradient(
+               context.getColor(if (startToTarget.first > startToTarget.second) R.color.red else R.color.green),
+                context.getColor(R.color.kinda_light_brown), percent)
+            )
         }
     }
 }
@@ -418,5 +404,23 @@ private class SoundPlayer(context: Context, maxStreams: Int) { // on its own che
     fun play(sound: Int, lVol: Float, rVol: Float) {
         if (isSoundEnabled)
             soundPool.play(sound, lVol, rVol, 1, 0 /* no loop */, 1f /* speed */)
+    }
+}
+
+private fun calculateGradient(@ColorInt from: Int, @ColorInt to: Int, fraction: Float): Int {
+    val colors = Array(2) { j ->
+        val clr = (if (j == 0) from else to).let {
+            if (it < 0) (Int.MAX_VALUE.toLong() + it - Int.MIN_VALUE + 1) else it.toLong()
+        }
+        LongArray(4) { i ->
+            (clr / 0x100.toDouble().pow(i.toDouble()) % 0x100).toLong()
+        }
+    }
+    return IntStream.range(0, colors[0].size).mapToLong {
+            i -> round((colors[1][i] - colors[0][i]) * fraction).toLong() + colors[0][i]
+    }.toArray().let { arr ->
+        IntStream.range(0, arr.size)
+            .mapToLong { (arr[it] * 0x100.toDouble().pow(it)).toLong() }
+            .reduce(Long::plus).asLong.toInt()
     }
 }
