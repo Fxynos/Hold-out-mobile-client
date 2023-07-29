@@ -1,5 +1,6 @@
 package com.vl.holdout.quests
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -34,6 +35,11 @@ class QuestsListAdapter(
 
     private val inflater: LayoutInflater = LayoutInflater.from(context)
     var quests: MutableList<Quest> = quests.toMutableList()
+        @SuppressLint("NotifyDataSetChanged")
+        set(value) {
+            field = value
+            notifyDataSetChanged() // TODO observe certain changes
+        }
 
     override fun getItemViewType(position: Int) = ViewType.`for`(quests[position]).id
 
