@@ -7,7 +7,8 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 
 /**
- * Must not be used to handle events of several PullDispatcher's
+ * Must not be used to handle events of several PullDispatcher's.
+ * Animates card flying away, callback, animates card flying backward after, callback.
  * @see PullDispatcher
  */
 class FlyAwayPullAnimator(

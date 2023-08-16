@@ -15,7 +15,7 @@
         app:flow_horizontalStyle="spread"
         app:constraint_referenced_ids="bar1,bar2,bar3,bar4"/>
 
-    <!-- TODO variable count -->
+    <!-- TODO variable count of bars -->
     <com.vl.barview.BarView
         android:id="@+id/bar1"
         android:layout_width="@dimen/icon_size"
@@ -23,7 +23,7 @@
         app:color="@color/kinda_gray_brown"
         app:active_color="@color/kinda_light_brown"
         app:src="@drawable/icon_close"
-        app:progress="0.5"/>
+        app:progress="0" />
 
     <com.vl.barview.BarView
         android:id="@+id/bar2"
@@ -32,7 +32,7 @@
         app:color="@color/kinda_gray_brown"
         app:active_color="@color/kinda_light_brown"
         app:src="@drawable/icon_close"
-        app:progress="0.5"/>
+        app:progress="0" />
 
     <com.vl.barview.BarView
         android:id="@+id/bar3"
@@ -41,7 +41,7 @@
         app:color="@color/kinda_gray_brown"
         app:active_color="@color/kinda_light_brown"
         app:src="@drawable/icon_close"
-        app:progress="0.5"/>
+        app:progress="0" />
 
     <com.vl.barview.BarView
         android:id="@+id/bar4"
@@ -50,7 +50,7 @@
         app:color="@color/kinda_gray_brown"
         app:active_color="@color/kinda_light_brown"
         app:src="@drawable/icon_close"
-        app:progress="0.5"/>
+        app:progress="0" />
 
     <View
         android:id="@+id/event_background"

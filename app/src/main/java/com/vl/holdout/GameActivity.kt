@@ -8,6 +8,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.graphics.drawable.Drawable
 import android.media.SoundPool
 import android.os.Bundle
 import android.util.TypedValue
@@ -18,45 +19,47 @@ import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.vl.barview.BarView
 import com.vl.holdout.parser.Parser
 import com.vl.holdout.parser.pojo.Bar
 import com.vl.holdout.parser.pojo.Card
 import com.vl.holdout.parser.pojo.Choice
+import com.vl.holdout.parser.pojo.Core
 import com.vl.holdout.pull.*
-import com.vl.holdout.quests.BinaryAskDialog
-import com.vl.holdout.quests.QuestsActivity
 import java.io.File
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.IntStream
-import java.util.stream.LongStream
-import java.util.stream.Stream
-import kotlin.collections.HashMap
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
 import kotlin.streams.toList
 
-// FIXME almost God object anti-pattern
+/**
+ * Lifecycle (Hide-Update-Show):
+ * 1. Card is released (swiped by user)
+ * 2. Texts faded
+ * 3. Card flew away
+ * 4. Texts is updated
+ * 5. Card image is updated
+ * 6. Card flew backward
+ * 7. Texts appeared
+ */
 @SuppressLint("ClickableViewAccessibility")
 class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     companion object {
-        const val IMAGE_SIZE = 480
         const val DURATION_ANSWER_APPEARING = 250L
         const val DURATION_TEXT_APPEARING = 250L
         const val DURATION_BACKGROUND_CHANGING = 500L
     }
-
-    private val rand = Random(System.currentTimeMillis())
-    private lateinit var currentCard: Card
-    private var pendingCard: Card? = null // card that will be loaded after previous one flew away
-    private lateinit var cardCanvas: Canvas
 
     private lateinit var eventBackground: View
     private lateinit var cardView: CardView
@@ -70,11 +73,13 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     private lateinit var counterDetail: TextView
     private lateinit var dispatcher: PullDispatcher
     private lateinit var barViews: Array<BarView>
-    private lateinit var bars: Map<Bar, BarView>
 
     private val fadeAppearAnimator = ValueAnimator()
     private val answerAnimator = ValueAnimator()
+    private val backgroundAnimator = ValueAnimator()
+
     private lateinit var soundPlayer: SoundPlayer
+    private lateinit var stateHolder: GameStateHolder
 
     private var cardReleased = true // used to track start of card pulling by answer container animator
     private var currentShownChoice: Int? = null // used to change choice titles (values {0, 1})
@@ -88,31 +93,29 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         soundPlayer = SoundPlayer(this, 3)
         initViews()
         initAnimators()
-        Bitmap.createBitmap(IMAGE_SIZE, IMAGE_SIZE, Bitmap.Config.ARGB_8888).also {
-            cardCanvas = Canvas(it)
-            image.setImageBitmap(it)
+        stateHolder = ViewModelProvider(this, GameStateHolderFactory(
+            QuestRepository(applicationContext, intent.getStringExtra("quest")!!)
+        ))[GameStateHolder::class.java]
+        stateHolder.uiState.observe(this) {
+            when (it) {
+                is GameStateHolder.UiState.Error -> onError(it)
+                is GameStateHolder.UiState.UpdateState -> update(it)
+                is GameStateHolder.UiState.NavigateToMenu -> {
+                    startActivity(Intent(this, MenuActivity::class.java))
+                    finish()
+                }
+            }
         }
+        stateHolder.isColorsInverted.observe(this, this::updateColors)
+        for (i in barViews.indices)
+            barViews[i].setDrawable(stateHolder.barDrawables[i])
         cardView.post {
             initPullDispatcher()
-            try {
-                initQuest(intent.getStringExtra("quest")!!)
-            } catch (e: Throwable) {
-                BinaryAskDialog(
-                    "Не удалось загрузить игру",
-                    e.message?.let { "Ошибка: \"$it\"" } ?: "Неизвестная ошибка",
-                    "Главное меню",
-                    "К списку",
-                    false
-                ) {
-                    startActivity(Intent(
-                        this,
-                        if (it) MenuActivity::class.java else QuestsActivity::class.java
-                    ))
-                    finish()
-                }.apply {
-                    isCancelable = false
-                    show(supportFragmentManager, null)
-                }
+            stateHolder.areTextsVisible.observe(this) {
+                if (it)
+                    startTextsAppearing()
+                else
+                    startTextsFading()
             }
         }
     }
@@ -123,17 +126,58 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     }
 
     override fun onChoice(choiceId: Int) {
-        when (choiceId) {
-            ChoiceHandler.CHOICE_LEFT -> applyChoice(currentCard.choices[0])
-            ChoiceHandler.CHOICE_RIGHT -> applyChoice(currentCard.choices[1])
-            else -> throw RuntimeException() // unreachable
-        }
-        startTextsFading()
         soundPlayer.play(
             soundPlayer.soundCardFlyAway,
             if (choiceId == ChoiceHandler.CHOICE_LEFT) 1f else 0.5f,
             if (choiceId == ChoiceHandler.CHOICE_RIGHT) 1f else 0.5f
         )
+        stateHolder.onChoice(stateHolder.availableChoices.let {
+            when (choiceId) {
+                ChoiceHandler.CHOICE_LEFT -> it[0]
+                ChoiceHandler.CHOICE_RIGHT -> it[1]
+                else -> throw RuntimeException() // unreachable
+            }
+        })
+    }
+
+    /* UI updates */
+
+    private fun onError(error: GameStateHolder.UiState.Error) {
+        dispatcher.lock(this)
+        AlertDialog.Builder(this)
+            .setTitle("Ошибка")
+            .setMessage(error.message)
+            .show()
+    }
+
+    private fun update(state: GameStateHolder.UiState.UpdateState) {
+        actor.text = state.title
+        text.text = state.text
+        image.setImageBitmap(state.image)
+        BarsAffectAnimator(this,
+            IntStream.range(0, barViews.size)
+                .mapToObj { i ->
+                    barViews[i] to (barViews[i].progress to state.barValues[i].toFloat())
+                }.filter { it.second.first != it.second.second }
+                .collect(Collectors.toMap ({ it.first }, { it.second }))
+        ).start()
+    }
+
+    private fun updateColors(inverted: Boolean) {
+        listOf(actor, text).forEach {
+            it.setTextColor(
+                getColor(
+                    if (inverted)
+                        R.color.kinda_light_brown
+                    else
+                        R.color.kinda_dark_brown
+                )
+            )
+        }
+        backgroundAnimator.run {
+            setFloatValues(*(if (inverted) floatArrayOf(0f, 1f) else floatArrayOf(1f, 0f)))
+            start()
+        }
     }
 
     /* Initialization */
@@ -147,26 +191,6 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         eventBackgroundColors =
             resolveInt(com.google.android.material.R.attr.colorSecondary) to
             resolveInt(android.R.attr.windowBackground)
-    }
-
-    private fun initQuest(questName: String) {
-        val questRoot = File(File(this.applicationInfo.dataDir, "quests"), questName)
-        val main = parse(questRoot).core["main"]
-        bars = IntStream.range(0, main.bars.size).mapToObj { i ->
-            val pair = main.bars[i] to barViews[i]
-            pair.apply{
-                second.progress = first.value.toFloat()
-                second.setDrawable(first.image)
-            }
-        }.collect(Collectors.toMap(
-            { it.first },
-            { it.second }
-        ))
-        applyChoice(main.choice)
-        pendingCard!!.also {
-            preloadCard(it)
-            loadCard(it)
-        }
     }
 
     private fun initPullDispatcher() {
@@ -187,7 +211,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                 }
                 (if (event.dx < 0f) 0 else 1).takeIf { currentShownChoice != it }?.also {
                     currentShownChoice = it
-                    answer.text = currentCard.choices[it].title
+                    answer.text = stateHolder.availableChoices[it].hint
                 }
             }
         )
@@ -203,12 +227,11 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                     ) { // On fly animation end
                         when (it) {
                             FlyAwayPullAnimator.ANIMATION_FLEW_AWAY -> {
-                                preloadCard(pendingCard!!)
+                                stateHolder.update()
                                 soundPlayer.play(soundPlayer.soundCardArrive, 1f, 1f)
                             }
                             FlyAwayPullAnimator.ANIMATION_ARRIVED -> {
-                                loadCard(pendingCard!!)
-                                startTextsAppearing()
+                                stateHolder.onShown()
                             }
                         }
                     },
@@ -218,6 +241,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                     ReleasePullAnimator(250)
                 )
             ) { event -> abs(event.dx) >= event.rangeHorizontal / 2 },
+
             {
                 cardReleased = true
                 currentShownChoice = null
@@ -227,24 +251,37 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
     }
 
     private fun initAnimators() {
-        fadeAppearAnimator.addUpdateListener {
-            val value = it.animatedValue as Float
-            text.alpha = value
-            actor.alpha = value
-        }
-        fadeAppearAnimator.addListener(object: AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                dispatcher.unlock(this@GameActivity)
+        fadeAppearAnimator.run {
+            duration = DURATION_TEXT_APPEARING
+            interpolator = AccelerateInterpolator()
+            addUpdateListener {
+                val value = it.animatedValue as Float
+                text.alpha = value
+                actor.alpha = value
             }
-        })
-        fadeAppearAnimator.duration = DURATION_TEXT_APPEARING
-        fadeAppearAnimator.interpolator = AccelerateInterpolator()
-
-        answerAnimator.addUpdateListener {
-            answerContainer.alpha = it.animatedValue as Float
+            addListener(object: AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    dispatcher.unlock(this@GameActivity)
+                }
+            })
         }
-        answerAnimator.duration = DURATION_ANSWER_APPEARING
-        answerAnimator.interpolator = LinearInterpolator()
+        answerAnimator.run {
+            duration = DURATION_ANSWER_APPEARING
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                answerContainer.alpha = it.animatedValue as Float
+            }
+        }
+        backgroundAnimator.run {
+            duration = DURATION_BACKGROUND_CHANGING
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Float
+                eventBackground.setBackgroundColor(
+                    calculateGradient(eventBackgroundColors.first, eventBackgroundColors.second, value)
+                )
+            }
+        }
     }
 
     private fun initViews() {
@@ -266,73 +303,7 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
         image = findViewById(R.id.cardImage)
     }
 
-    private fun parse(root: File) = Parser.load(root)
-
-    /* Card updates */
-
-    private fun onLastCardLoaded() {
-        dispatcher.lock(object: Lock {}) // won't be unlocked after
-        ValueAnimator().apply {
-            duration = DURATION_BACKGROUND_CHANGING
-            setFloatValues(1f)
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animator ->
-                val value = animator.animatedValue as Float
-                eventBackground.setBackgroundColor(
-                    calculateGradient(eventBackgroundColors.first, eventBackgroundColors.second, value)
-                )
-            }
-            start()
-        }
-        text.setTextColor(getColor(R.color.kinda_light_brown))
-        actor.setTextColor(getColor(R.color.kinda_light_brown)) // TODO bind to theme
-    }
-
-    /**
-     * Apply affects (with animation) and prepare next card to be loaded.
-     */
-    private fun applyChoice(choice: Choice) {
-        val affects = HashMap<BarView, Pair<Float, Float>>()
-        choice.affects.forEach { (bar, affect) ->
-            val barView = bars[bar]!!
-            val targetProgress = if (affect.type == Choice.Affect.Type.EXPLICIT)
-                affect.value.toFloat()
-            else
-                maxOf(minOf(barView.progress + affect.value.toFloat(), 1f), 0f)
-            affects[barView] = barView.progress to targetProgress
-        }
-        val animator = BarsAffectAnimator(this, affects)
-        dispatcher.lock(animator)
-        animator.addListener(object: AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                dispatcher.unlock(animator)
-            }
-        })
-        animator.start()
-        val choices = bars.entries.stream().map {
-                entry -> when (affects[entry.value]?.second) {
-                    1f -> entry.key.triggers[Bar.TRIGGER_MAX]
-                    0f -> entry.key.triggers[Bar.TRIGGER_MIN]
-                    else -> null
-                }
-        }.filter(Objects::nonNull).map { it!! }.toList()
-        pendingCard = (
-                choices.takeIf(List<Choice>::isNotEmpty)?.get(rand.nextInt(choices.size)) // apply one of triggers
-                ?: choice // otherwise expected choice is applied
-        ).cards.let { it[rand.nextInt(it.size)] }
-    }
-
-    private fun preloadCard(card: Card) {
-        currentCard = card
-        Arrays.stream(card.picture.layers).forEach { it.accept(cardCanvas) } // drawing
-        if (currentCard.choices.size != 2)
-            onLastCardLoaded()
-    }
-
-    private fun loadCard(card: Card) {
-        text.text = card.text
-        actor.text = card.title
-    }
+    /* Animations */
 
     private fun cancelIfAnimation(animator: ValueAnimator) {
         if (animator.isRunning) {
@@ -422,5 +393,168 @@ private fun calculateGradient(@ColorInt from: Int, @ColorInt to: Int, fraction: 
         IntStream.range(0, arr.size)
             .mapToLong { (arr[it] * 0x100.toDouble().pow(it)).toLong() }
             .reduce(Long::plus).asLong.toInt()
+    }
+}
+
+private class GameStateHolderFactory(
+    private val questRepository: QuestRepository
+): ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        if (GameStateHolder::class.java.isAssignableFrom(modelClass))
+            GameStateHolder(questRepository) as T
+        else throw IllegalArgumentException("${modelClass.name} class is not supported")
+}
+
+private class GameStateHolder(private val questRepository: QuestRepository): ViewModel() { // TODO pass only quest name (for catching error state on parsing)
+    companion object {
+        private object MenuChoice: QuestRepository.ChoiceWrapper {
+            override val hint = "Главное меню"
+        }
+
+        private object PlayAgainChoice: QuestRepository.ChoiceWrapper {
+            override val hint = "Ещё раз"
+        }
+
+        const val IMAGE_SIZE = 720
+        val gameOverChoices: Array<QuestRepository.ChoiceWrapper> =
+            arrayOf(MenuChoice, PlayAgainChoice)
+    }
+
+    val areTextsVisible = MutableLiveData<Boolean>()
+    val isColorsInverted = MutableLiveData(false)
+    val uiState = MutableLiveData<UiState>()
+
+    val barDrawables: Array<Drawable> =
+        Arrays.stream(questRepository.bars).map { it.drawable }.toList().toTypedArray()
+    val availableChoices: Array<QuestRepository.ChoiceWrapper>
+        get() =  if (isCardLast) gameOverChoices else card.choices
+
+    private val isCardLast: Boolean
+        get() = card.choices.size != 2
+    private var card = questRepository.firstCard
+    private val bitmap = Bitmap.createBitmap(IMAGE_SIZE, IMAGE_SIZE, Bitmap.Config.ARGB_8888) // TODO A/B buffering
+    private val canvas = Canvas(bitmap)
+
+
+    init { update() }
+
+    fun onChoice(choice: QuestRepository.ChoiceWrapper) { // card is swiped away
+        areTextsVisible.value = false
+        when (choice) {
+            is MenuChoice -> uiState.value = UiState.NavigateToMenu
+            is PlayAgainChoice -> {
+                card = questRepository.firstCard
+                questRepository.resetBars()
+            }
+            else -> card = questRepository.applyChoice(choice)
+        }
+    }
+
+    fun update() { // actually called when card has flown away
+        card.draw(canvas) // TODO move from main thread
+        uiState.value = UiState.UpdateState(
+            card.title,
+            card.text,
+            bitmap,
+            Arrays.stream(questRepository.bars).mapToDouble { it.value }.toArray()
+        )
+        if (isColorsInverted.value != isCardLast)
+            isColorsInverted.value = isCardLast
+    }
+
+    fun onShown() { // actually called when card has flown backward
+        areTextsVisible.value = true
+    }
+
+    sealed interface UiState {
+        class Error(val message: String): UiState
+
+        class UpdateState(
+            val title: String,
+            val text: String,
+            val image: Bitmap,
+            val barValues: DoubleArray
+        ): UiState
+
+        object NavigateToMenu: UiState
+    }
+}
+
+private class QuestRepository(
+    context: Context, // app context
+    name: String
+) {
+    companion object {
+        private val rand = Random(System.currentTimeMillis())
+        private fun chooseCard(choice: Choice) = choice.cards.let { it[rand.nextInt(it.size)] } // TODO check triggers
+        private fun (ChoiceWrapper).unwrap() = (this as ChoiceWrapperImpl).choice
+        private fun (BarWrapper).unwrap() = (this as BarWrapperImpl).bar
+    }
+
+    private val quest: Core =
+        Parser.load(
+            File(
+                File(
+                    context.applicationInfo.dataDir,
+                    "quests"
+                ),
+                name
+            )
+        ).core["main"]
+
+    val bars: Array<BarWrapper> = Arrays.stream(quest.bars).map(::BarWrapperImpl)
+        .toList().toTypedArray()
+    val firstCard: CardWrapper = CardWrapperImpl(chooseCard(quest.choice))
+
+    fun applyChoice(choice: ChoiceWrapper): CardWrapper {
+        choice.unwrap().affects.forEach { (bar, affect) ->
+            val barWrapper = Arrays.stream(bars).filter { it.unwrap() == bar }.findAny().get()
+            when (affect.type) {
+                Choice.Affect.Type.EXPLICIT -> barWrapper.value = affect.value
+                Choice.Affect.Type.MASK -> barWrapper.value += affect.value
+            }
+        }
+        return CardWrapperImpl(chooseCard(choice.unwrap()))
+    }
+
+    fun resetBars() {
+        for (i in bars.indices)
+            bars[i].value = quest.bars[i].value
+    }
+
+    sealed interface ChoiceWrapper {
+        val hint: String
+    }
+
+    sealed interface CardWrapper {
+        val title: String
+        val text: String
+        val choices: Array<ChoiceWrapper>
+        fun draw(canvas: Canvas)
+    }
+
+    sealed interface BarWrapper {
+        var value: Double
+        val drawable: Drawable
+    }
+
+    private class ChoiceWrapperImpl(val choice: Choice): ChoiceWrapper {
+        override val hint by choice::title
+    }
+
+    private class CardWrapperImpl(val card: Card): CardWrapper {
+        override val title by card::title
+        override val text by card::text
+        override val choices: Array<ChoiceWrapper> =
+            Arrays.stream(card.choices).map(::ChoiceWrapperImpl).toList().toTypedArray()
+        override fun draw(canvas: Canvas) {
+            card.picture.layers.forEach { it.accept(canvas) }
+        }
+    }
+
+    private class BarWrapperImpl(val bar: Bar): BarWrapper {
+        override var value = bar.value
+        override val drawable by bar::image
     }
 }
