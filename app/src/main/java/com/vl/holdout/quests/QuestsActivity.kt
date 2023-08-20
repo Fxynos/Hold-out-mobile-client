@@ -2,6 +2,7 @@ package com.vl.holdout.quests
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -53,6 +54,12 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
             if (!stateHolder.areAvailableQuestsFetched && !stateHolder.updateQuestsList())
                 withContext(Dispatchers.Main) { onConnectionError() }
         }
+        onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                startActivity(Intent(this@QuestsActivity, MenuActivity::class.java))
+                finish()
+            }
+        })
     }
 
     private fun onConnectionError() =
@@ -61,11 +68,6 @@ class QuestsActivity: AppCompatActivity(), OnQuestActionListener {
             getString(R.string.no_connection),
             R.drawable.ic_wifi_off
         ).show()
-
-    override fun onBackPressed() {
-        startActivity(Intent(this, MenuActivity::class.java))
-        finish()
-    }
 
     override fun onDownloadClick(quest: AvailableQuest) {
         val dialog = DownloadingDialog(quest.name)

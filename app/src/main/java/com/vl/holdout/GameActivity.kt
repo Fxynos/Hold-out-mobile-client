@@ -19,6 +19,7 @@ import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
 import androidx.appcompat.app.AlertDialog
@@ -118,11 +119,12 @@ class GameActivity: AppCompatActivity(), ChoiceHandler.OnChoiceListener, Lock {
                     startTextsFading()
             }
         }
-    }
-
-    override fun onBackPressed() {
-        startActivity(Intent(this, MenuActivity::class.java))
-        finish()
+        onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                startActivity(Intent(this@GameActivity, MenuActivity::class.java))
+                finish()
+            }
+        })
     }
 
     override fun onChoice(choiceId: Int) {

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.inputmethod.EditorInfo
 import android.widget.CheckBox
 import android.widget.EditText
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
 class SettingsActivity: AppCompatActivity() {
@@ -29,16 +30,16 @@ class SettingsActivity: AppCompatActivity() {
                 false
             }
         }
+        onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                startActivity(Intent(this@SettingsActivity, MenuActivity::class.java))
+                finish()
+            }
+        })
     }
 
     override fun onPause() {
         super.onPause()
         shared.host = host.text.toString()
     }
-
-    override fun onBackPressed() {
-        startActivity(Intent(this, MenuActivity::class.java))
-        finish()
-    }
-
 }
