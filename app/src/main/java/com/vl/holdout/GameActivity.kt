@@ -39,6 +39,7 @@ import java.io.File
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.IntStream
+import java.util.stream.Stream
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
@@ -489,7 +490,7 @@ private class QuestRepository(
 ) {
     companion object {
         private val rand = Random(System.currentTimeMillis())
-        private fun chooseCard(choice: Choice) = choice.cards.let { it[rand.nextInt(it.size)] } // TODO check triggers
+        private fun chooseCard(choice: Choice) = choice.cards.let { it[rand.nextInt(it.size)] }
         private fun (ChoiceWrapper).unwrap() = (this as ChoiceWrapperImpl).choice
         private fun (BarWrapper).unwrap() = (this as BarWrapperImpl).bar
     }
@@ -517,7 +518,15 @@ private class QuestRepository(
                 Choice.Affect.Type.MASK -> barWrapper.value += affect.value
             }
         }
-        return CardWrapperImpl(chooseCard(choice.unwrap()))
+        return CardWrapperImpl(chooseCard(
+            Stream.of(*bars).flatMap {
+                when (it.value) {
+                    0.0 -> it.unwrap().triggers[Bar.TRIGGER_MIN]
+                    1.0 -> it.unwrap().triggers[Bar.TRIGGER_MAX]
+                    else -> null
+                }?.let { choice -> Stream.of(choice) } ?: Stream.empty()
+            }.findAny().orElse(choice.unwrap())
+        ))
     }
 
     fun resetBars() {
